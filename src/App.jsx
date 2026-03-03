@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import JsSIP from "jssip";
+import NumPad from "./components/DialPad.jsx";
 
 export default function App() {
   const uaRef = useRef(null);
@@ -10,6 +11,16 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [incomingSession, setIncomingSession] = useState(null);
   const [activeSession, setActiveSession] = useState(null);
+
+  const dial = (number = "") => {
+    if (status === "registered") {
+      setTarget(target + number);
+    }
+  };
+
+  const clearTarget = () => {
+    setTarget("");
+  };
 
   const register = () => {
     const socket = new JsSIP.WebSocketInterface("wss://192.168.9.200:8089/ws");
@@ -24,11 +35,11 @@ export default function App() {
 
     ua.on("registered", (data) => {
       console.log("registered, response -> ", data.response);
-      setStatus("endpoint registered ");
+      setStatus("registered");
     });
 
     ua.on("registrationFailed", (e) => {
-      setStatus("can't register this endpoint ");
+      setStatus("registration Failed");
       console.error("register fail :", e.cause);
     });
 
@@ -36,11 +47,22 @@ export default function App() {
     ua.on("newRTCSession", (data) => {
       const session = data.session;
 
+      // FIX: audio not working
       session.on("track", (e) => {
-        if (e.track.kind === "audio" && remoteAudioRef.current) {
+        if (remoteAudioRef.current) {
           remoteAudioRef.current.srcObject = e.streams[0];
-          remoteAudioRef.current.play().catch(() => { });
+          remoteAudioRef.current.muted = false;
+          remoteAudioRef.current
+            .play()
+            .then(() => {
+              console.log("audio is starting");
+            })
+            .catch((error) => {
+              console.log(" error starting audio : ", error);
+            });
         } else {
+          remoteAudioRef.current.src = window.URL.createObjectURL(e.stream);
+          remoteAudioRef.current.muted = false;
           console.log("depug the audio");
         }
       });
@@ -57,7 +79,7 @@ export default function App() {
         console.log("call from a peer : now answering");
       } else {
         setActiveSession(session);
-        setStatus("calling ...");
+        setStatus("calling");
       }
     });
     console.log("connecting to the signaling server");
@@ -78,7 +100,7 @@ export default function App() {
     });
     setActiveSession(incomingSession);
     setIncomingSession(null);
-    setStatus("talking ...");
+    setStatus("talking");
   };
 
   const hungUp = () => {
@@ -90,11 +112,11 @@ export default function App() {
   };
 
   return (
-    <div>
-      <h2 style={{ textAlign: "center" }}>endpoint status : {status}</h2>
+    <div className="main">
+      <h4 style={{ textAlign: "center" }}>status : {status}</h4>
 
-      {status === "Disconnected" && (
-        <div>
+      {(status === "Disconnected" || status === "registration Failed") && (
+        <div className="stat">
           <input
             type="text"
             value={userName}
@@ -116,7 +138,7 @@ export default function App() {
       )}
 
       {status === "registered" && (
-        <div>
+        <div className="stat">
           <input
             type="text"
             value={target}
@@ -124,6 +146,9 @@ export default function App() {
             onChange={(e) => setTarget(e.target.value)}
           />
 
+          <button type="button" onClick={clearTarget}>
+            ⨉
+          </button>
           <button type="button" onClick={makeCall}>
             Call
           </button>
@@ -131,7 +156,7 @@ export default function App() {
       )}
 
       {status === "incoming call" && (
-        <div>
+        <div className="stat">
           <button type="button" onClick={anserCall}>
             anserCall
           </button>
@@ -142,13 +167,21 @@ export default function App() {
       )}
 
       {activeSession && (
-        <div>
+        <div className="stat">
           <button type="button" onClick={hungUp}>
             hangup
           </button>
         </div>
       )}
-      <audio ref={remoteAudioRef} autoPlay controls playsInline muted={false} />
+      <NumPad dial={dial} />
+      <audio
+        style={{ display: "none" }}
+        ref={remoteAudioRef}
+        autoPlay
+        controls
+        playsInline
+        muted={false}
+      />
     </div>
   );
 }
