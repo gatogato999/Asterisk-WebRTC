@@ -47,27 +47,27 @@ export default function App() {
     ua.on("newRTCSession", (data) => {
       const session = data.session;
 
-      // FIX: audio not working
-      session.on("track", (e) => {
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = e.streams[0];
-          remoteAudioRef.current.muted = false;
-          remoteAudioRef.current
-            .play()
-            .then(() => {
-              console.log("audio is starting");
-            })
-            .catch((error) => {
-              console.log(" error starting audio : ", error);
-            });
-        } else {
-          remoteAudioRef.current.src = window.URL.createObjectURL(e.stream);
-          remoteAudioRef.current.muted = false;
-          console.log("depug the audio");
-        }
+      session.connection.addEventListener("track", (e) => {
+        const stream = e.streams[0];
+        remoteAudioRef.current.srcObject = stream;
+        remoteAudioRef.current.muted = false;
+        remoteAudioRef.current
+          .play(() => {
+            console.log("sound started ");
+          })
+          .catch((err) => {
+            console.log("Error getting the sound :", err);
+          });
       });
 
       session.on("ended", () => {
+        console.log("session ended : ");
+        setActiveSession(null);
+        setIncomingSession(null);
+        setStatus("registered");
+      });
+      session.on("failed", () => {
+        console.log("session failed : ");
         setActiveSession(null);
         setIncomingSession(null);
         setStatus("registered");
@@ -80,6 +80,8 @@ export default function App() {
       } else {
         setActiveSession(session);
         setStatus("calling");
+        console.log("sending a call");
+        console.log("calling someone");
       }
     });
     console.log("connecting to the signaling server");
@@ -99,7 +101,7 @@ export default function App() {
       mediaConstraints: { audio: true, video: false },
     });
     setActiveSession(incomingSession);
-    setIncomingSession(null);
+    // setIncomingSession(null);
     setStatus("talking");
   };
 
@@ -115,7 +117,7 @@ export default function App() {
     <div className="main">
       <h4 style={{ textAlign: "center" }}>status : {status}</h4>
 
-      {(status === "Disconnected" || status === "registration Failed") && (
+      {status === "Disconnected" && (
         <div className="stat">
           <input
             type="text"
@@ -173,15 +175,9 @@ export default function App() {
           </button>
         </div>
       )}
-      <NumPad dial={dial} />
-      <audio
-        style={{ display: "none" }}
-        ref={remoteAudioRef}
-        autoPlay
-        controls
-        playsInline
-        muted={false}
-      />
+
+      {status === "registered" && <NumPad dial={dial} />}
+      <audio ref={remoteAudioRef} autoPlay />
     </div>
   );
 }

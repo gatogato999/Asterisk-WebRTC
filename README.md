@@ -9,7 +9,7 @@ A browser phone that connect clients to asterisk.
 - [x] Receive a call with `asnwer` button
 - [x] Cancel a call with `hangup` button
 - [x] Make GUI dial buttons
-- [ ] Fix the received audio problem
+- [x] Fix the received audio problem
 - [x] Add better CSS
 - [ ] Refactor
 
